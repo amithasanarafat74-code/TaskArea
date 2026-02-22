@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaskIncome Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary: #00f3ff;
+            --secondary: #bc13fe;
+            --bg-dark: #0f0f1a;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+            --success: #00ff88;
+            --danger: #ff4d4d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Noto Sans Bengali', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Neon Background */
+        .neon-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #1a1a2e, #0f0f1a);
+        }
+        .neon-bg::before, .neon-bg::after {
+            content: '';
+            position: absolute;
+            width: 300px; height: 300px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: float 10s infinite alternate;
+        }
+        .neon-bg::before { background: var(--secondary); top: -100px; left: -100px; }
+        .neon-bg::after { background: var(--primary); bottom: -100px; right: -100px; }
+        @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(50px, 50px); } }
+
+        /* Layout */
+        .container { max-width: 480px; margin: 0 auto; padding-bottom: 80px; }
+        
+        .header {
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(to bottom, rgba(15, 15, 26, 0.9), transparent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo { font-size: 22px; font-weight: 700; color: var(--primary); text-shadow: 0 0 10px rgba(0,243,255,0.5); }
+        .uid { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+        .balance-card {
+            background: linear-gradient(135deg, #2b0a3d, #0f3460);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(188,19,254,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .balance-card::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+        @keyframes shine { 0% { transform: translateX(-100%) rotate(45deg); } 100% { transform: translateX(100%) rotate(45deg); } }
+
+        .bal-info h2 { font-size: 32px; color: var(--success); text-shadow: 0 0 10px rgba(0,255,136,0.5); }
+        .bal-info p { color: var(--text-muted); font-size: 14px; }
+
+        /* Cards & Buttons */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 20px;
+            margin: 15px 20px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+        .btn-primary {
+            background: linear-gradient(to right, #bc13fe, #00f3ff);
+            color: white;
+            box-shadow: 0 4px 15px rgba(188,19,254,0.4);
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+        .btn-admin-icon {
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 480px;
+            background: rgba(15,15,26,0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+        .nav-item {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; display: block; }
+
+        /* History */
+        .history-item {
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            border-left: 3px solid var(--text-muted);
+        }
+        .status-pending { border-left-color: #ffc107; }
+        .status-approved { border-left-color: var(--success); }
+        .status-rejected { border-left-color: var(--danger); }
+        
+        .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .badge-pending { background: rgba(255,193,7,0.2); color: #ffc107; }
+        .badge-approved { background: rgba(0,255,136,0.2); color: var(--success); }
+        .badge-rejected { background: rgba(255,77,77,0.2); color: var(--danger); }
+
+        /* Referral */
+        .ref-box {
+            background: rgba(0,243,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            word-break: break-all;
+            border: 1px dashed var(--primary);
+            margin-bottom: 10px;
+            color: #eee;
+        }
+
+        /* Admin Styles */
+        .admin-login-page, .admin-panel {
+            display: none;
+        }
+        
+        .req-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .req-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-approve { background: var(--success); color: #000; flex: 1; padding: 8px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-reject { background: var(--danger); color: white; flex: 1; padding: 8px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; }
+
+        .task-done { opacity: 0.5; pointer-events: none; text-decoration: line-through; }
+
+        /* Popup */
+        .popup {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .popup.active { opacity: 1; pointer-events: all; }
+        .popup-content {
+            background: #1a1a2e;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            width: 90%;
+            max-width: 300px;
+            border: 1px solid var(--primary);
+        }
+        .loader { text-align: center; padding: 20px; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div class="neon-bg"></div>
+
+    <!-- 1. USER APP -->
+    <div id="userApp">
+        <div class="header">
+            <div>
+                <div class="logo">TaskIncome</div>
+                <div class="uid" id="showUid">Loading...</div>
+            </div>
+            <!-- Admin Icon Button -->
+            <div class="btn-admin-icon" onclick="showAdminLogin()">🔒</div>
+        </div>
+
+        <div class="container">
+            <!-- Balance -->
+            <div class="balance-card">
+                <div class="bal-info">
+                    <p>মোট ব্যালেন্স</p>
+                    <h2 id="mainBalance">0.00 ৳</h2>
+                </div>
+                <div style="font-size: 40px;">💰</div>
+            </div>
+
+            <!-- Pages -->
+            <!-- Home -->
+            <div id="page-home" class="page">
+                <div class="card">
+                    <div class="section-title">🔗 রেফারেল (১ টাকা)</div>
+                    <p style="font-size:13px; color:#aaa; margin-bottom:10px;">লিংক শেয়ার করে আয় করুন।</p>
+                    <div class="ref-box" id="refLink">Loading...</div>
+                    <button class="btn btn-primary" onclick="copyRef()">লিংক কপি করুন</button>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <!-- Updated Share Button -->
+                        <button class="btn btn-outline" style="flex:1" onclick="shareTelegram()">Telegram Share</button>
+                        <button class="btn btn-outline" style="flex:1" onclick="shareWhatsapp()">WhatsApp</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="section-title">🔥 দৈনিক টাস্ক</div>
+                    <div id="task1" class="card" style="margin:0; margin-bottom:10px; cursor:pointer;" onclick="startTask(1)">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>টাস্ক ১: চ্যানেল জয়েন</span>
+                            <span style="background:var(--success); color:#000; padding:2px 8px; border-radius:5px; font-size:12px;">+5 ৳</span>
+                        </div>
+                    </div>
+                    <div id="task2" class="card" style="margin:0; cursor:pointer;" onclick="startTask(2)">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span>টাস্ক ২: ভিডিও দেখুন</span>
+                            <span style="background:var(--success); color:#000; padding:2px 8px; border-radius:5px; font-size:12px;">+5 ৳</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gmail -->
+            <div id="page-gmail" class="page" style="display:none;">
+                <div class="card">
+                    <div class="section-title">📧 জিমেইল বিক্রি (১০ টাকা)</div>
+                    <input type="text" id="gmailInput" placeholder="জিমেইল">
+                    <input type="text" id="gmailPass" placeholder="পাসওয়ার্ড">
+                    <button class="btn btn-primary" onclick="submitGmail()">সাবমিট</button>
+                </div>
+                <div class="card">
+                    <div class="section-title">📜 হিস্টোরি</div>
+                    <div id="gmailHistory"><div class="loader">লোড হচ্ছে...</div></div>
+                </div>
+            </div>
+
+            <!-- Wallet -->
+            <div id="page-wallet" class="page" style="display:none;">
+                <div class="card">
+                    <div class="section-title">💸 উইথড্র (মিন: ২০৳)</div>
+                    <select id="wdMethod">
+                        <option value="bKash">বিকাশ</option>
+                        <option value="Nagad">নগদ</option>
+                    </select>
+                    <input type="number" id="wdNumber" placeholder="নম্বর">
+                    <input type="number" id="wdAmount" placeholder="টাকার পরিমাণ">
+                    <button class="btn btn-primary" onclick="requestWithdraw()">রিকোয়েস্ট</button>
+                </div>
+                <div class="card">
+                    <div class="section-title">📜 হিস্টোরি</div>
+                    <div id="withdrawHistory"><div class="loader">লোড হচ্ছে...</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('home')"><i>🏠</i><span>হোম</span></div>
+            <div class="nav-item" onclick="switchTab('gmail')"><i>📧</i><span>জিমেইল</span></div>
+            <div class="nav-item" onclick="switchTab('wallet')"><i>💰</i><span>ওয়ালেট</span></div>
+        </div>
+    </div>
+
+    <!-- 2. ADMIN LOGIN POPUP -->
+    <div id="adminLoginScreen" class="popup">
+        <div class="popup-content">
+            <h3 style="margin-bottom:20px; color:var(--secondary)">Admin Login</h3>
+            <input type="text" id="adminUser" placeholder="Username">
+            <input type="password" id="adminPass" placeholder="Password">
+            <button class="btn btn-primary" onclick="validateAdmin()">Login</button>
+            <button class="btn btn-outline" style="margin-top:10px;" onclick="closeAdminLogin()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- 3. ADMIN PANEL -->
+    <div id="adminApp" class="admin-panel" style="display:none; padding:20px;">
+        <div class="container">
+            <div class="card">
+                <div class="section-title">🛡️ Admin Dashboard</div>
+                <button class="btn btn-outline" onclick="logoutAdmin()">Logout</button>
+                <div style="margin-top:15px; font-size:14px;">
+                    <p>Total Users: <span id="totalUsers">0</span></p>
+                    <p>Total Given: <span id="totalBal">0</span>৳</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">📧 Gmail Requests</div>
+                <div id="adminGmailList"><div class="loader">Loading...</div></div>
+            </div>
+
+            <div class="card">
+                <div class="section-title">💸 Withdraw Requests</div>
+                <div id="adminWdList"><div class="loader">Loading...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Popup -->
+    <div id="popup" class="popup">
+        <div class="popup-content">
+            <h3 id="popTitle">Success</h3>
+            <p id="popMsg" style="margin: 15px 0;"></p>
+            <button class="btn btn-primary" onclick="closePop()">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = {
+            databaseURL: "https://taskincome-198b4-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Credentials
+        const ADMIN_USER = "admin";
+        const ADMIN_PASS = "adminamit123";
+        
+        // Bot Link Configuration
+        const BOT_USERNAME = "TaskEarningBD1_bot"; // Your Bot Username
+
+        // App State
+        let currentUserId = null;
+        let currentUser = null;
+
+        // Device & Telegram ID Binding
+        function getDeviceId() {
+            // Check if inside Telegram WebApp
+            if(window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.expand();
+                
+                // Strict Telegram User ID
+                if(tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                    return "tg_" + tg.initDataUnsafe.user.id;
+                }
+            }
+
+            // Fallback for Browser Testing
+            let id = localStorage.getItem('taskincome_device_id');
+            if (!id) {
+                id = "dev_" + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('taskincome_device_id', id);
+            }
+            return id;
+        }
+
+        // Initialize App
+        function initApp() {
+            currentUserId = getDeviceId();
+            document.getElementById('showUid').innerText = "ID: " + currentUserId;
+            
+            // Setup Referral Link
+            setupRefLink();
+            
+            const userRef = db.ref('users/' + currentUserId);
+            userRef.on('value', (snap) => {
+                if (snap.exists()) {
+                    currentUser = snap.val();
+                    updateUserUI();
+                } else {
+                    // Register New User
+                    registerNewUser();
+                }
+            });
+
+            // Listen for balance updates
+            db.ref('users/' + currentUserId + '/balance').on('value', (snap) => {
+                if(snap.val() !== null) {
+                    document.getElementById('mainBalance').innerText = snap.val().toFixed(2) + " ৳";
+                    if(currentUser) currentUser.balance = snap.val();
+                }
+            });
+            
+            loadUserHistory();
+        }
+
+        function registerNewUser() {
+            let referrerId = null;
+            
+            // Check for Referral Parameter
+            if(window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) {
+                const startParam = window.Telegram.WebApp.initDataUnsafe.start_param;
+                if(startParam) {
+                    referrerId = startParam; // The ID passed in the link
+                }
+            }
+
+            const newUser = {
+                balance: 0,
+                created: Date.now(),
+                refCount: 0,
+                referredBy: referrerId || null,
+                task1: false,
+                task2: false
+            };
+            
+            db.ref('users/' + currentUserId).set(newUser);
+            currentUser = newUser;
+            
+            // Give Bonus to Referrer
+            if(referrerId && referrerId !== currentUserId) {
+                addRefBonus(referrerId);
+            }
+        }
+
+        function addRefBonus(refId) {
+            // Add 1 Taka to Referrer
+            db.ref('users/' + refId).transaction(u => {
+                if(u) { u.balance = (u.balance||0)+1; u.refCount=(u.refCount||0)+1; }
+                return u;
+            });
+        }
+
+        function setupRefLink() {
+            // Extract pure numeric ID if it's in "tg_123" format, or use full ID
+            let linkId = currentUserId;
+            if (linkId.startsWith("tg_")) {
+                linkId = linkId.replace("tg_", ""); // Use only numeric ID for cleaner link
+            }
+            // Link Format: https://t.me/BOT_USERNAME?startapp=USER_ID
+            const link = `https://t.me/${BOT_USERNAME}?startapp=${linkId}`;
+            document.getElementById('refLink').innerText = link;
+        }
+
+        function updateUserUI() {
+            if(!currentUser) return;
+            if(currentUser.task1) document.getElementById('task1').classList.add('task-done');
+            if(currentUser.task2) document.getElementById('task2').classList.add('task-done');
+        }
+
+        function copyRef() {
+            navigator.clipboard.writeText(document.getElementById('refLink').innerText);
+            showPop("Copied!", "রেফারেল লিংক কপি হয়েছে।");
+        }
+
+        function shareTelegram() {
+            const link = document.getElementById('refLink').innerText;
+            const text = "আয় করুন প্রতিদিন! জয়েন করুন টাস্ক ইনকামে।";
+            // Open Telegram Share
+            window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`);
+        }
+        
+        function shareWhatsapp() {
+            const link = document.getElementById('refLink').innerText;
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent("জয়েন করুন: " + link)}`);
+        }
+
+        function startTask(num) {
+            let key = 'task' + num;
+            if(currentUser[key]) return;
+            if(num===1) window.open('https://t.me/your_channel', '_blank');
+            if(num===2) window.open('https://youtube.com', '_blank');
+            
+            setTimeout(() => {
+                db.ref('users/' + currentUserId).transaction(u => {
+                    if(u && !u[key]) { u.balance += 5; u[key] = true; }
+                    return u;
+                }).then(() => {
+                    showPop("Success!", "+5 টাকা যোগ হয়েছে।");
+                    document.getElementById(key).classList.add('task-done');
+                });
+            }, 2000);
+        }
+
+        function submitGmail() {
+            const mail = document.getElementById('gmailInput').value;
+            const pass = document.getElementById('gmailPass').value;
+            if(!mail||!pass) return showPop("Error", "সব তথ্য দিন।");
+            db.ref('gmailRequests').push({ user: currentUserId, mail, pass, status: 'pending', time: Date.now() });
+            document.getElementById('gmailInput').value = '';
+            document.getElementById('gmailPass').value = '';
+            showPop("Done", "রিকোয়েস্ট পাঠানো হয়েছে।");
+        }
+
+        function requestWithdraw() {
+            const method = document.getElementById('wdMethod').value;
+            const num = document.getElementById('wdNumber').value;
+            const amt = parseFloat(document.getElementById('wdAmount').value);
+
+            if(amt < 20) return showPop("Error", "মিনিমাম ২০ টাকা।");
+            if(num.length < 11) return showPop("Error", "সঠিক নম্বর দিন।");
+            
+            db.ref('users/' + currentUserId + '/balance').once('value', s => {
+                if(s.val() >= amt) {
+                    db.ref('withdrawRequests').push({ user: currentUserId, method, number: num, amount: amt, status: 'pending', time: Date.now() });
+                    db.ref('users/' + currentUserId + '/balance').set(s.val() - amt);
+                    document.getElementById('wdAmount').value = '';
+                    showPop("Done", "রিকোয়েস্ট সফল।");
+                } else {
+                    showPop("Error", "ব্যালেন্স নেই।");
+                }
+            });
+        }
+
+        function loadUserHistory() {
+            db.ref('gmailRequests').orderByChild('user').equalTo(currentUserId).on('value', s => {
+                const d = document.getElementById('gmailHistory');
+                if(!s.exists()) { d.innerHTML = "<center style='color:#555'>Empty</center>"; return; }
+                let h = '';
+                s.forEach(c => {
+                    const r = c.val();
+                    h += `<div class="history-item status-${r.status}">
+                        <div><div>${r.mail}</div><div style="font-size:10px;color:#555">${new Date(r.time).toLocaleString()}</div></div>
+                        <span class="status-badge badge-${r.status}">${r.status}</span>
+                    </div>`;
+                });
+                d.innerHTML = h;
+            });
+
+            db.ref('withdrawRequests').orderByChild('user').equalTo(currentUserId).on('value', s => {
+                const d = document.getElementById('withdrawHistory');
+                if(!s.exists()) { d.innerHTML = "<center style='color:#555'>Empty</center>"; return; }
+                let h = '';
+                s.forEach(c => {
+                    const r = c.val();
+                    h += `<div class="history-item status-${r.status}">
+                        <div><div>${r.amount}৳ via ${r.method}</div><div style="font-size:10px;color:#555">${new Date(r.time).toLocaleString()}</div></div>
+                        <span class="status-badge badge-${r.status}">${r.status}</span>
+                    </div>`;
+                });
+                d.innerHTML = h;
+            });
+        }
+
+        // --- ADMIN SECTION ---
+        
+        function showAdminLogin() {
+            document.getElementById('adminLoginScreen').classList.add('active');
+        }
+
+        function closeAdminLogin() {
+            document.getElementById('adminLoginScreen').classList.remove('active');
+        }
+
+        function validateAdmin() {
+            const u = document.getElementById('adminUser').value;
+            const p = document.getElementById('adminPass').value;
+            if(u === ADMIN_USER && p === ADMIN_PASS) {
+                closeAdminLogin();
+                document.getElementById('userApp').style.display = 'none';
+                document.getElementById('adminApp').style.display = 'block';
+                loadAdminData();
+            } else {
+                alert("Wrong Password!");
+            }
+        }
+
+        function logoutAdmin() {
+            document.getElementById('adminApp').style.display = 'none';
+            document.getElementById('userApp').style.display = 'block';
+            document.getElementById('adminUser').value = '';
+            document.getElementById('adminPass').value = '';
+        }
+
+        function loadAdminData() {
+            db.ref('users').on('value', s => {
+                let c=0, b=0;
+                const data = s.val();
+                for(let id in data) { c++; b += data[id].balance||0; }
+                document.getElementById('totalUsers').innerText = c;
+                document.getElementById('totalBal').innerText = b.toFixed(2);
+            });
+
+            db.ref('gmailRequests').orderByChild('status').equalTo('pending').on('value', s => {
+                const d = document.getElementById('adminGmailList');
+                if(!s.exists()) { d.innerHTML = "<center>No Requests</center>"; return; }
+                let h = '';
+                s.forEach(c => {
+                    const r = c.val();
+                    h += `<div class="req-card">
+                        <div>User: ${r.user}<br>${r.mail} / ${r.pass}</div>
+                        <div class="req-actions">
+                            <button class="btn-approve" onclick="adminAction('gmail', 'approve', '${c.key}', '${r.user}')">Approve (+10)</button>
+                            <button class="btn-reject" onclick="adminAction('gmail', 'reject', '${c.key}')">Reject</button>
+                        </div>
+                    </div>`;
+                });
+                d.innerHTML = h;
+            });
+
+            db.ref('withdrawRequests').orderByChild('status').equalTo('pending').on('value', s => {
+                const d = document.getElementById('adminWdList');
+                if(!s.exists()) { d.innerHTML = "<center>No Requests</center>"; return; }
+                let h = '';
+                s.forEach(c => {
+                    const r = c.val();
+                    h += `<div class="req-card">
+                        <div>User: ${r.user}<br>${r.amount}৳ to ${r.number} (${r.method})</div>
+                        <div class="req-actions">
+                            <button class="btn-approve" onclick="adminAction('withdraw', 'approve', '${c.key}')">Paid</button>
+                            <button class="btn-reject" onclick="adminAction('withdraw', 'reject', '${c.key}', '${r.user}', ${r.amount})">Refund</button>
+                        </div>
+                    </div>`;
+                });
+                d.innerHTML = h;
+            });
+        }
+
+        function adminAction(type, action, key, uid, amt) {
+            if(type === 'gmail') {
+                if(action === 'approve') {
+                    db.ref('gmailRequests/'+key).update({status: 'approved'});
+                    db.ref('users/'+uid+'/balance').transaction(b => (b||0)+10);
+                } else {
+                    db.ref('gmailRequests/'+key).update({status: 'rejected'});
+                }
+            } else {
+                if(action === 'approve') {
+                    db.ref('withdrawRequests/'+key).update({status: 'approved'});
+                } else {
+                    db.ref('users/'+uid+'/balance').transaction(b => (b||0)+amt);
+                    db.ref('withdrawRequests/'+key).update({status: 'rejected'});
+                }
+            }
+        }
+
+        // UI Helpers
+        function switchTab(tab) {
+            document.querySelectorAll('.page').forEach(el => el.style.display = 'none');
+            document.getElementById('page-' + tab).style.display = 'block';
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function showPop(t, m) {
+            document.getElementById('popTitle').innerText = t;
+            document.getElementById('popMsg').innerText = m;
+            document.getElementById('popup').classList.add('active');
+        }
+        function closePop() { document.getElementById('popup').classList.remove('active'); }
+
+        // Start
+        initApp();
+    </script>
+</body>
+</html>
